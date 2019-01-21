@@ -124,14 +124,19 @@ class KNN:
 		for example in self.examples :
 			neighbors.append((example.gold_class, prox(example.vector, ovector)))
 
-		best = sorted(neighbors, key = lambda x : x[1], reverse = self.use_cosinus )
+		best = sorted(neighbors, key = lambda x : x[1], reverse = self.use_cosinus)
 
 		result = []
+		i_class = defaultdict(int)
 		for i in range(self.K):
-			i_class = defaultdict(int)
-			for neighbor in best[:i+1] :
-				i_class[neighbor[0]] += self.weigth(neighbor[1])
-			result.append(sorted(i_class.items(), key = lambda x : x[1], reverse = not self.weight_neighbors or (self.weight_neighbors and self.use_cosinus))[0][0])
+			i_class[best[i][0]] += self.weigth(best[i][1])
+			top = 0
+			classes = sorted(i_class.items(), key = lambda x : x[1], reverse = True)
+			alpha = set()
+			while top < len(classes) and classes[top][1] == classes[0][1] :
+				alpha.add(classes[top][0])
+				top += 1
+			result.append(sorted(alpha)[0])
 		return [cat for cat in result]
 
 
@@ -146,7 +151,7 @@ class KNN:
 			x = self.classify(example.vector)
 			result = [1 if example.gold_class == i_class else 0 for i_class in x]
 			results = [x + y for x, y in zip(results, result)]
-		return [acc / len (test_examples) *100 for acc in results]
+		return [acc / len(test_examples) for acc in results]
 		
 		
 
@@ -173,7 +178,6 @@ def read_examples(infile):
 			(featname, val) = line.split('	')
 			example.add_feat(featname, float(val))
 
-	
 	if example is not None:
 		examples.append(example)
 	return examples
@@ -230,5 +234,6 @@ myclassifier = KNN( examples = training_examples,
 # classification et evaluation sur les exemples de test
 accuracies = myclassifier.evaluate_on_test_set(test_examples)
 for i in range(len(accuracies)):
-	print("With", i+1, "neighbor" + ("s" if i else "") , "\t : ",accuracies[i])
+	print("ACCURACY FOR K =", i+1, " : ","{:.2%}".format(accuracies[i]),
+			"(weight =", args.weight_neighbors, "dist_or_cos =", "cos)" if args.use_cosinus else "dist)" )
 
