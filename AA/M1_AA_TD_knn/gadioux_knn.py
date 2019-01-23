@@ -114,30 +114,36 @@ class KNN:
 		pour les valeurs de k allant de 1 à self.K
 
 		A partir d'un vecteur de traits représentant un objet
-		retourne un vecteur des classes assignées de longueur K : la classe à la i-eme  position est la classe assignée par l'algo K-NN, avec K = i
+		retourne un vecteur des classes assignées de longueur K : 
+		la classe à la i-eme  position est la classe assignée par l'algo K-NN, avec K = i
 		"""
-		neighbors = []
+		#Select the classifying function
 		if self.use_cosinus :
 			prox = Ovector.cosinus
 		else :
 			prox = Ovector.distance_to_vector
+		
+		#Classify
+		neighbors = []
 		for example in self.examples :
 			neighbors.append((example.gold_class, prox(example.vector, ovector)))
 
+		#Sort neighbors
 		best = sorted(neighbors, key = lambda x : x[1], reverse = self.use_cosinus)
 
+		#Extracts nearests neighbors
 		result = []
 		i_class = defaultdict(int)
 		for i in range(self.K):
 			i_class[best[i][0]] += self.weigth(best[i][1])
-			top = 0
+			top_ones = 0 # top_ones is for preventing list out of range while sorting alphabeticals.
 			classes = sorted(i_class.items(), key = lambda x : x[1], reverse = True)
 			alpha = set()
-			while top < len(classes) and classes[top][1] == classes[0][1] :
-				alpha.add(classes[top][0])
-				top += 1
+			while top_ones < len(classes) and classes[top_ones][1] == classes[0][1] :
+				alpha.add(classes[top_ones][0])
+				top_ones += 1
 			result.append(sorted(alpha)[0])
-		return [cat for cat in result]
+		return result
 
 
 	def evaluate_on_test_set(self, test_examples):
@@ -145,12 +151,11 @@ class KNN:
 		pour les valeurs de k allant de 1 à self.K
 		Retourne une liste d'accuracy (pour les valeurs de k à self.K)
 		"""
-		# TODO
 		results = [0 for i in range(self.K)]
 		for example in test_examples :
-			x = self.classify(example.vector)
-			result = [1 if example.gold_class == i_class else 0 for i_class in x]
-			results = [x + y for x, y in zip(results, result)]
+			class_example = self.classify(example.vector)
+			result_example = [1 if example.gold_class == class_i else 0 for class_i in class_example]
+			results = [x + y for x, y in zip(results, result_example)]
 		return [acc / len(test_examples) for acc in results]
 		
 		
