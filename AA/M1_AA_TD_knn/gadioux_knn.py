@@ -67,7 +67,7 @@ class Ovector:
 
 	def cosinus(self, other_vector):
 		""" rend le cosinus de self et other_vector """
-		return self.dot_product(other_vector) / (self.norm_square * other_vector.norm_square)
+		return self.dot_product(other_vector) / sqrt(self.norm_square * other_vector.norm_square)
 
 
 class KNN:
