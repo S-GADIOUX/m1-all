@@ -1,19 +1,43 @@
 #!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
 
-import sys, re, argparse
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
-import matplotlib
+import sys
+import re
+import argparse
 from math import *
 from collections import defaultdict
+import numpy
 
 
 # du fait d'erreurs de calcul, on se retrouve parfois avec des distances négatives
 # on prend ici une valeur minimale de distance, positive (pour pouvoir prendre la racine) et non nulle (pour pouvoir prendre l'inverse)
 MINDIST =  1e-18
 
+class Indice :
+
+	def __init__(self):
+		self.words_to_ind = {}
+		self.ind_to_word = []
+	
+	def size_of(self):
+		return len(self.ind_to_word)
+
+	def add_words(self, word):
+		if word not in words_to_ind :
+			self.words_to_ind[word] = len(self.ind_to_word)
+			self.ind_to_word.append(word)
+
+	def get_indice(self, word):
+		if word not in words_to_ind :
+			self.add_words(word)
+		return self.words_to_ind[word]
+
+	def get_word(self, ind):
+		#Theoritical not used
+		if ind <= len() :
+			#raise Error
+			pass
+		return self.ind_to_word[ind]
 
 class Example:
 	"""
@@ -162,7 +186,7 @@ class KNN:
 		
 		
 
-def read_examples(infile):
+def read_examples(infile, indice):
 	""" Lit un fichier d'exemples 
 	et retourne une liste d'instances de Example
 	"""
@@ -183,11 +207,23 @@ def read_examples(infile):
 			example = Example(example_number, gold_class)
 		elif line and example is not None:
 			(featname, val) = line.split('	')
+			indice.add_words(featname)
 			example.add_feat(featname, float(val))
 
 	if example is not None:
 		examples.append(example)
 	return examples
+
+def give_me_the_matrix(example_list, indice):
+	X_matrix = np.zeros(len(example_list), indice.size_of)
+	Y_vector = []
+	i = 0
+	for example in example_list :
+		Y_vector.append(example.gold_class)
+		for feat in example.ovector.f
+			X_matrix[i, indice.get_indice(feat) ] = example.ovector.f[feat]
+		i += 1
+	return X_matrix, Y_vector
 
 
 
@@ -228,38 +264,23 @@ args = parser.parse_args()
 
 #------------------------------------------------------------
 # Chargement des exemples d'apprentissage du classifieur KNN
-training_examples = read_examples(args.examples_file)
+indexer = Indice()
+training_examples = read_examples(args.examples_file, indexer)
 # Chargement des exemples de test
-test_examples = read_examples(args.test_file)
+test_examples = read_examples(args.test_file, indexer)
 
-if args.tune :
-	tuner = defaultdict(object)
-	for cos in [True, False] : 
-		for weight in [True, False] :
-			classifier = KNN( examples = training_examples,
-							K = args.k,
-							weight_neighbors = weight,
-							use_cosinus = cos,
-							trace = args.trace)
-			tuner[("Cosinus" if cos else "Euclide") + " " + ("Pondere" if weight else "Standard")] = classifier.evaluate_on_test_set(test_examples)
-	df = pd.DataFrame.from_dict(tuner)
-	df.index = range(1,args.k+1)
-	print(df)
-	ax = sns.lineplot(data = df)
-	plt.show()
-else :
+X_train, Y_train = give_me_the_matrix(training_examples, indexer)
+X_test, Y_test = give_me_the_matrix(training_examples, indexer)
 
-	myclassifier = KNN( examples = training_examples,
-						K = args.k,
-						weight_neighbors = args.weight_neighbors,
-						use_cosinus = args.use_cosinus,
-						trace = args.trace)
+myclassifier = KNN( examples = training_examples,
+					K = args.k,
+					weight_neighbors = args.weight_neighbors,
+					use_cosinus = args.use_cosinus,
+					trace = args.trace)
 
-	# classification et evaluation sur les exemples de test
-	accuracies = myclassifier.evaluate_on_test_set(test_examples)
-	for i in range(len(accuracies)):
-		print("ACCURACY FOR K =", i+1, " : ","{:.2%}".format(accuracies[i]),
-				"(weight =", args.weight_neighbors, "dist_or_cos =", "cos)" if args.use_cosinus else "dist)" )
-
-
+# classification et evaluation sur les exemples de test
+accuracies = myclassifier.evaluate_on_test_set(test_examples)
+for i in range(len(accuracies)):
+	print("ACCURACY FOR K =", i+1, " : ","{:.2%}".format(accuracies[i]),
+			"(weight =", args.weight_neighbors, "dist_or_cos =", "cos)" if args.use_cosinus else "dist)" )
 
