@@ -6,7 +6,7 @@ import re
 import argparse
 from math import *
 from collections import defaultdict
-import numpy
+import numpy as np
 
 
 # du fait d'erreurs de calcul, on se retrouve parfois avec des distances négatives
@@ -17,18 +17,18 @@ class Indice :
 
 	def __init__(self):
 		self.words_to_ind = {}
-		self.ind_to_word = []
+		self.ind_to_words = []
 	
 	def size_of(self):
-		return len(self.ind_to_word)
+		return len(self.ind_to_words)
 
 	def add_words(self, word):
-		if word not in words_to_ind :
-			self.words_to_ind[word] = len(self.ind_to_word)
-			self.ind_to_word.append(word)
+		if word not in self.words_to_ind :
+			self.words_to_ind[word] = len(self.ind_to_words)
+			self.ind_to_words.append(word)
 
 	def get_indice(self, word):
-		if word not in words_to_ind :
+		if word not in self.words_to_ind :
 			self.add_words(word)
 		return self.words_to_ind[word]
 
@@ -37,7 +37,7 @@ class Indice :
 		if ind <= len() :
 			#raise Error
 			pass
-		return self.ind_to_word[ind]
+		return self.ind_to_words[ind]
 
 class Example:
 	"""
@@ -94,7 +94,6 @@ class Ovector:
 	def cosinus(self, other_vector):
 		""" rend le cosinus de self et other_vector """
 		return self.dot_product(other_vector) / sqrt(self.norm_square * other_vector.norm_square)
-
 
 class KNN:
 	"""
@@ -182,9 +181,7 @@ class KNN:
 			class_example = self.classify(example.vector)
 			result_example = [1 if example.gold_class == class_i else 0 for class_i in class_example]
 			results = [x + y for x, y in zip(results, result_example)]
-		return [acc / len(test_examples) for acc in results]
-		
-		
+		return [acc / len(test_examples) for acc in results]				
 
 def read_examples(infile, indice):
 	""" Lit un fichier d'exemples 
@@ -215,17 +212,21 @@ def read_examples(infile, indice):
 	return examples
 
 def give_me_the_matrix(example_list, indice):
-	X_matrix = np.zeros(len(example_list), indice.size_of)
+	X_matrix = np.zeros((len(example_list), indice.size_of()))
 	Y_vector = []
 	i = 0
 	for example in example_list :
 		Y_vector.append(example.gold_class)
-		for feat in example.ovector.f
-			X_matrix[i, indice.get_indice(feat) ] = example.ovector.f[feat]
+		for feat in example.vector.f :
+			X_matrix[i, indice.get_indice(feat) ] = example.vector.f[feat]
 		i += 1
 	return X_matrix, Y_vector
 
+def return_norm(matrix):
+	return np.apply_along_axis(np.linalg.norm,1, matrix)
 
+def normalize_matrix(matrix, norm_of):
+	return matrix/norm_of[:,None]
 
 usage = """ CLASSIFIEUR de DOCUMENTS, de type K-NN
 
@@ -270,8 +271,46 @@ training_examples = read_examples(args.examples_file, indexer)
 test_examples = read_examples(args.test_file, indexer)
 
 X_train, Y_train = give_me_the_matrix(training_examples, indexer)
-X_test, Y_test = give_me_the_matrix(training_examples, indexer)
+X_test, Y_test = give_me_the_matrix(test_examples, indexer)
 
+norm_train = return_norm(X_train)
+norm_test = return_norm(X_test)
+classed = np.dot( normalize_matrix(X_test, norm_test ), normalize_matrix(X_train, norm_train).transpose())
+
+def KNNM(classed_matrix, Y_train, Y_test):
+	global_result = []
+	for line in classed_matrix :
+		best = sorted([(Y_train[x],line[x]) for x in range(len(line))], key = lambda x : x[1], reverse = True)
+			#Extracts nearests neighbors
+		result = []
+		i_class = defaultdict(int)
+		for i in range(10):
+			i_class[best[i][0]] += best[i][1]
+			top_ones = 0 # top_ones is for preventing list out of range while sorting alphabeticals.
+			classes = sorted(i_class.items(), key = lambda x : x[1], reverse = True)
+			alpha = set()
+			while top_ones < len(classes) and classes[top_ones][1] == classes[0][1] :
+				alpha.add(classes[top_ones][0])
+				top_ones += 1
+			result.append(sorted(alpha)[0])
+		global_result.append((result, Y_test.pop(0)))
+	return global_result
+
+def calc_acc(results):
+	acc = [0 for i in range(10)]
+	for result in results :
+		result_example = [1 if result[1]== class_i else 0 for class_i in result[0]]
+		acc = [x + y for x, y in zip(acc, result_example)]
+	return [a / len(results) for a in acc]
+
+
+accuracies = calc_acc(KNNM(classed, Y_train, Y_test))
+
+for i in range(len(accuracies)):
+	print("ACCURACY FOR K =", i+1, " : ","{:.2%}".format(accuracies[i]) )
+
+
+"""
 myclassifier = KNN( examples = training_examples,
 					K = args.k,
 					weight_neighbors = args.weight_neighbors,
@@ -284,3 +323,4 @@ for i in range(len(accuracies)):
 	print("ACCURACY FOR K =", i+1, " : ","{:.2%}".format(accuracies[i]),
 			"(weight =", args.weight_neighbors, "dist_or_cos =", "cos)" if args.use_cosinus else "dist)" )
 
+"""
