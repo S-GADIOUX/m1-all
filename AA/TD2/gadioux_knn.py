@@ -1,20 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: iso-8859-1 -*-
 
-import sys
-import re
-import argparse
+import sys, re,  argparse
 from math import *
 from collections import defaultdict
 import numpy as np
-
 
 # du fait d'erreurs de calcul, on se retrouve parfois avec des distances négatives
 # on prend ici une valeur minimale de distance, positive (pour pouvoir prendre la racine) et non nulle (pour pouvoir prendre l'inverse)
 MINDIST =  1e-18
 
 class Indice :
-
+	"""
+	Classe servant à faire un lien entre des mots et leur index.
+	"""
 	def __init__(self):
 		self.words_to_ind = {}
 		self.ind_to_words = []
@@ -32,13 +31,6 @@ class Indice :
 			self.add_words(word)
 		return self.words_to_ind[word]
 
-	def get_word(self, ind):
-		#Theoritical not used
-		if ind <= len() :
-			#raise Error
-			pass
-		return self.ind_to_words[ind]
-
 class Example:
 	"""
 	Un exemple : 
@@ -52,7 +44,6 @@ class Example:
 
 	def add_feat(self, featname, val):
 		self.vector.add_feat(featname, val)
-
 
 class Ovector:
 	"""
@@ -71,121 +62,14 @@ class Ovector:
 		self.f[featname] = val
 		self.norm_square += val*val
 
-
 	def prettyprint(self):
 		for feat in sorted(self.f, lambda x,y: cmp( self.f[y], self.f[x] ) or cmp(x,y)):
 			print (feat + "	" + str(self.f[feat]))
 
-	def distance_to_vector(self, other_vector):
-		""" distance euclidienne entre self et other_vector, en ayant precalculé les normes au carre de chacun """
-		# NB: passer par la formulation  sigma [ (ai - bi)^2 ] = sigma (ai^2) + sigma (bi^2) -2 sigma (ai*bi) 
-		#													= norm_square(A) + norm_square(B) - 2 A.B
-
-		return sqrt(self.norm_square + other_vector.norm_square - 2* self.dot_product(other_vector))
-
-	def dot_product(self, other_vector):
-		""" rend le produit scalaire de self et other_vector """
-		dot = 0
-		for feat in self.f :
-			if feat in other_vector.f :
-				dot += self.f[feat]*other_vector.f[feat]
-		return dot
-
-	def cosinus(self, other_vector):
-		""" rend le cosinus de self et other_vector """
-		return self.dot_product(other_vector) / sqrt(self.norm_square * other_vector.norm_square)
-
-class KNN:
-	"""
-	K-NN pour la classification de documents (multiclasse)
-
-	membres = 
-
-	k = l'hyperparametre K : le nombre de voisins a considerer
-
-	examples = liste d'instances de Example
-
-	classes = liste des classes (telles que recensées dans les exemples)
-
-	"""
-	def __init__(self, examples, K = 1, weight_neighbors = None, use_cosinus = False, trace = False):
-		""" 
-		simple positionnement des membres et recensement des classes connues
-		"""
-		# les exemples : liste d'instances de Example
-		self.examples = examples
-		# le nb de voisins
-		self.K = K
-		# booleen : on pondere les voisins (par inverse de la distance) ou pas
-		self.weight_neighbors = weight_neighbors
-
-		# booleen : pour utiliser plutot la similarité cosinus
-		self.use_cosinus = use_cosinus
-
-		self.trace = trace
-		
-
-	def weigth(self, x) :
-		if not self.weight_neighbors :
-			return 1
-		elif self.use_cosinus :
-			return x
-		else :
-			return 1/x
-
-	def classify(self, ovector):
-		"""
-		Réalise la prédiction du classifieur K-NN pour le ovector
-		pour les valeurs de k allant de 1 à self.K
-
-		A partir d'un vecteur de traits représentant un objet
-		retourne un vecteur des classes assignées de longueur K : 
-		la classe à la i-eme  position est la classe assignée par l'algo K-NN, avec K = i
-		"""
-		#Select the classifying function
-		if self.use_cosinus :
-			prox = Ovector.cosinus
-		else :
-			prox = Ovector.distance_to_vector
-		
-		#Classify
-		neighbors = []
-		for example in self.examples :
-			neighbors.append((example.gold_class, prox(example.vector, ovector)))
-
-		#Sort neighbors
-		best = sorted(neighbors, key = lambda x : x[1], reverse = self.use_cosinus)
-
-		#Extracts nearests neighbors
-		result = []
-		i_class = defaultdict(int)
-		for i in range(self.K):
-			i_class[best[i][0]] += self.weigth(best[i][1])
-			top_ones = 0 # top_ones is for preventing list out of range while sorting alphabeticals.
-			classes = sorted(i_class.items(), key = lambda x : x[1], reverse = True)
-			alpha = set()
-			while top_ones < len(classes) and classes[top_ones][1] == classes[0][1] :
-				alpha.add(classes[top_ones][0])
-				top_ones += 1
-			result.append(sorted(alpha)[0])
-		return result
-
-
-	def evaluate_on_test_set(self, test_examples):
-		""" Application du classifieur sur une liste d'exemples de test, et evaluation (accuracy) 
-		pour les valeurs de k allant de 1 à self.K
-		Retourne une liste d'accuracy (pour les valeurs de k à self.K)
-		"""
-		results = [0 for i in range(self.K)]
-		for example in test_examples :
-			class_example = self.classify(example.vector)
-			result_example = [1 if example.gold_class == class_i else 0 for class_i in class_example]
-			results = [x + y for x, y in zip(results, result_example)]
-		return [acc / len(test_examples) for acc in results]				
-
 def read_examples(infile, indice):
 	""" Lit un fichier d'exemples 
-	et retourne une liste d'instances de Example
+	et retourne une liste d'instances de Example,
+	tout en chargeant une classe Indice.
 	"""
 	stream = open(infile)
 	examples = []
@@ -228,6 +112,45 @@ def return_norm(matrix):
 def normalize_matrix(matrix, norm_of):
 	return matrix/norm_of[:,None]
 
+def create_cos_matrix(X_train, X_test):
+	norm_train = return_norm(X_train)
+	norm_test = return_norm(X_test)
+	classed = np.dot( normalize_matrix(X_test, norm_test ), normalize_matrix(X_train, norm_train).transpose())
+	return classed
+
+def KNN(classed_matrix, Y_train, Y_test, k):
+	"""
+	We assume classed matrix as a matrix where lines are test and columns are train, so in a line we have cosinus of all 
+	"""
+	global_result = []
+	for line in classed_matrix :
+		best = sorted([(Y_train[x],line[x]) for x in range(len(line))], key = lambda x : x[1], reverse = True)
+		#Extracts nearests neighbors
+		result = []
+		i_class = defaultdict(int)
+		for i in range(k):
+			i_class[best[i][0]] += best[i][1]
+			top_ones = 0 # top_ones is for preventing list out of range while sorting alphabeticals.
+			classes = sorted(i_class.items(), key = lambda x : x[1], reverse = True)
+			alpha = set()
+			while top_ones < len(classes) and classes[top_ones][1] == classes[0][1] :
+				alpha.add(classes[top_ones][0])
+				top_ones += 1
+			result.append(sorted(alpha)[0])
+		global_result.append((result, Y_test.pop(0)))
+	return global_result
+
+def classify(X_train, Y_train, vec, k):
+	var = KNN(create_cos_matrix(X_train, vec[None,:]), Y_train, ["UNKWOWN"], k)
+	return var[0] 
+
+def calc_acc(results, k):
+	acc = [0 for i in range(k)]
+	for result in results :
+		result_example = [1 if result[1]== class_i else 0 for class_i in result[0]]
+		acc = [x + y for x, y in zip(acc, result_example)]
+	return [a / len(results) for a in acc]
+
 usage = """ CLASSIFIEUR de DOCUMENTS, de type K-NN
 
   """+sys.argv[0]+""" [options] EXAMPLES_FILE TEST_FILE
@@ -264,63 +187,20 @@ parser.add_argument('-f', "--figure_file", default = "graphique.pdf",
 args = parser.parse_args()
 
 #------------------------------------------------------------
-# Chargement des exemples d'apprentissage du classifieur KNN
 indexer = Indice()
+# Chargement des exemples d'apprentissage du classifieur KNN
 training_examples = read_examples(args.examples_file, indexer)
 # Chargement des exemples de test
 test_examples = read_examples(args.test_file, indexer)
-
+#Creation des matrices
 X_train, Y_train = give_me_the_matrix(training_examples, indexer)
 X_test, Y_test = give_me_the_matrix(test_examples, indexer)
-
-norm_train = return_norm(X_train)
-norm_test = return_norm(X_test)
-classed = np.dot( normalize_matrix(X_test, norm_test ), normalize_matrix(X_train, norm_train).transpose())
-
-def KNNM(classed_matrix, Y_train, Y_test):
-	global_result = []
-	for line in classed_matrix :
-		best = sorted([(Y_train[x],line[x]) for x in range(len(line))], key = lambda x : x[1], reverse = True)
-			#Extracts nearests neighbors
-		result = []
-		i_class = defaultdict(int)
-		for i in range(10):
-			i_class[best[i][0]] += best[i][1]
-			top_ones = 0 # top_ones is for preventing list out of range while sorting alphabeticals.
-			classes = sorted(i_class.items(), key = lambda x : x[1], reverse = True)
-			alpha = set()
-			while top_ones < len(classes) and classes[top_ones][1] == classes[0][1] :
-				alpha.add(classes[top_ones][0])
-				top_ones += 1
-			result.append(sorted(alpha)[0])
-		global_result.append((result, Y_test.pop(0)))
-	return global_result
-
-def calc_acc(results):
-	acc = [0 for i in range(10)]
-	for result in results :
-		result_example = [1 if result[1]== class_i else 0 for class_i in result[0]]
-		acc = [x + y for x, y in zip(acc, result_example)]
-	return [a / len(results) for a in acc]
-
-
-accuracies = calc_acc(KNNM(classed, Y_train, Y_test))
+# Calcul de la matrice cosinus
+cos_matrix = create_cos_matrix(X_train, X_test)
+#Calcul des KNN
+scores = KNN(cos_matrix, Y_train, Y_test, args.k)
+#Calcul de la precision
+accuracies = calc_acc(scores , args.k)
 
 for i in range(len(accuracies)):
-	print("ACCURACY FOR K =", i+1, " : ","{:.2%}".format(accuracies[i]) )
-
-
-"""
-myclassifier = KNN( examples = training_examples,
-					K = args.k,
-					weight_neighbors = args.weight_neighbors,
-					use_cosinus = args.use_cosinus,
-					trace = args.trace)
-
-# classification et evaluation sur les exemples de test
-accuracies = myclassifier.evaluate_on_test_set(test_examples)
-for i in range(len(accuracies)):
-	print("ACCURACY FOR K =", i+1, " : ","{:.2%}".format(accuracies[i]),
-			"(weight =", args.weight_neighbors, "dist_or_cos =", "cos)" if args.use_cosinus else "dist)" )
-
-"""
+	print("ACCURACY FOR K =", i+1, "\t: ","{:.2%}".format(accuracies[i]) )
