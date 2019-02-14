@@ -5,11 +5,6 @@ import sys, argparse
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.linear_model import Perceptron
 
-# du fait d'erreurs de calcul, on se retrouve parfois avec des distances négatives
-# on prend ici une valeur minimale de distance, positive (pour pouvoir prendre la racine) et non nulle (pour pouvoir prendre l'inverse)
-MINDIST =  1e-18
-
-
 def read_examples(infile, vectorizer, train = True ):
 	""" Lit un fichier d'exemples 
 	et retourne une liste d'instances de Example,
