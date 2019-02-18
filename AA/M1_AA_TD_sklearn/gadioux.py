@@ -14,13 +14,17 @@ def read_examples(infile, vectorizer, train = True ):
 	classes = []
 	examples = []
 	line = stream.readline()
+	
 	while line :
+		#Recuperation des classes et du document.
 		goldes, phrases = line.split('\t')
-		golds = goldes.split("\t")
+		golds = goldes.split(",")
+		#Phase de multiplication des exemples multi-classes
 		for gold in golds :
 			classes.append(gold)
 			examples.append(phrases)
 		line = stream.readline()
+	
 	if train :
 		return classes, vectorizer.fit_transform(examples)
 	else :
@@ -49,16 +53,14 @@ args = parser.parse_args()
 
 #------------------------------------------------------------
 if args.tfidf :
-	vectorizer = TfidfVectorizer(token_pattern=r"\w+")
+	vectorizer = TfidfVectorizer(token_pattern = r"\w+")
 else :
-	vectorizer = CountVectorizer(token_pattern=r"\w+")
+	vectorizer = CountVectorizer(token_pattern = r"\w+")
 # Chargement des exemples d'apprentissage du classifieur KNN
 Y_train, X_train = read_examples(args.examples_file, vectorizer)
 # Chargement des exemples de test
 Y_test, X_test = read_examples(args.test_file, vectorizer, False)
 #Creation des matrices
 
-perceptron = Perceptron()
-perceptron.fit(X_train, Y_train)
-
+perceptron = Perceptron().fit(X_train, Y_train)
 print(perceptron.score(X_test, Y_test))
