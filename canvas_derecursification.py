@@ -5,15 +5,12 @@ class Symbol:
 	# field name: String
 	# (no methods)
 	
-	def __init__(self, name):
+	def __init__(self, name) :
 		# name: String		
-		self.name = name;
+		self.name = name 
 	
-	def __str__(self):
-		return self.name;
-
-	def __eq__(self, other) :
-		return self.name == other.name
+	def __str__(self) :
+		return self.name
 
 class Rule:
 	# field lhs: Symbol
@@ -28,7 +25,7 @@ class Rule:
 		self.rhs = rhs;
 		
 	def __str__(self):
-		return str(self.lhs) + " --> [" + ",".join([str(s) for s in self.rhs]) + "]";
+		return str(self.lhs) + " --> [" + ", ".join([str(s) for s in self.rhs]) + "]";
 
 class Grammar:
 	# field symbols: list of Symbol
@@ -58,14 +55,14 @@ class Grammar:
 		name = symbolName
 		
 		ok = False;
-		while (ok == False):
+		while not ok :
 			ok = True
 			for s in self.symbols :
 				if s.name == name :
 					ok = False
 					break
 			
-			if ok == False:
+			if not ok:
 				name = name + "'"
 		
 		return Symbol(name)
@@ -77,9 +74,9 @@ class Grammar:
 		
 	def __str__(self):
 		return "{" +\
-			"symbols = [" + ",".join([str(s) for s in self.symbols]) + "]; " +\
-			"axiom = " + str(self.axiom) + "; " +\
-			"rules = [" + ", ".join(str(r) for r in self.rules) + "]" +\
+			"symbols = [" + ", ".join([str(s) for s in self.symbols]) + "]; " +\
+			"axiom = " + str(self.axiom) + ";\n" +\
+			"rules = [\n" + ",\n".join(str(r) for r in self.rules) + "\n]" +\
 			"}";
 
 # Definition of the symbols
@@ -146,32 +143,58 @@ def removeDirectRecursionSymbol(g, symbol):
 	# symbol: Symbol
 	
 	# First, separate (using the previously defined functions) the rules of interest
-	sym_rules, others_1 = getRules(g, symbol)
+	sym_rules, others_rules = getRules(g, symbol)
 
-	rec_rules, others_2 = getLeftRecursiveRules(sym_rules)
+	alpha_rules, beta_rules = getLeftRecursiveRules(sym_rules)
 	
 	# Then, create a new list of rules (for the new grammar) containing the rules we don't need to change
-	standars_rules = others_1 + others_2;
-	
+	# That's other_rules...
+
 	# Add the new derecursified rules
 	"""
 	Algorithm:
 	A −→ Aα1 | Aα2 | . . . | Aαm | β 1 | . . . | βk
 	becomes
-	A  −→ β1 A′ | β2 A′ | . . . | βk A′
-	A′  −→ α1  A′ | α2 A′ | . . . | αm A′ | ε
+	A  −→ β1 A′ | β2 A′ | . . . | βk A′ | B1 -- Bk
+	A′  −→ α1  A′ | α2 A′ | . . . | αm A′ | al1 - alm
 	"""
-	pass;
+	new_rules = []
+	prime = g.createNewSymbol(symbol.name)
+	for rule in beta_rules :
+		new_rules.append(Rule(symbol, rule.rhs))
+		new_rules.append(Rule(symbol, rule.rhs + [prime]))
+	for rule in alpha_rules :
+		new_rules.append(Rule(prime, rule.rhs[1:]))
+		new_rules.append(Rule(prime, rule.rhs[1:] + [prime]))
 	
 	# Create and return the new grammar
-	pass;
+
+	return Grammar(
+		# Alphabet
+		g.symbols+[prime],
+	
+		# Axiom
+		g.axiom,
+	
+		# List of rules
+		others_rules + new_rules
+		)
 
 # Return the grammar obtained by removing all direct left recursion in g
 # The original grammar g should not be modified (a new one should be defined)
 def removeDirectRecursion(g):
 	# g: Grammar
+	gram = g
+	rec = True
 	
-	pass;
+	while rec :
+		rec = False
+		for rule in gram.rules :
+			if rule.lhs == rule.rhs[0] :
+				gram = removeDirectRecursionSymbol(gram, rule.lhs)
+				rec = True
+				break
+	return gram
 
 print ("Élimination de la récursivité directe :")
 print ("")
