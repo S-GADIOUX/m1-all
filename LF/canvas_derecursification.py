@@ -206,7 +206,21 @@ print (removeDirectRecursion(grammar))
 # The original grammar g should not be modified (a new one should be defined)
 def removeRecursion(g):
 	# g: Grammar
+	gram = removeDirectRecursion(
+			Grammar(
+			# Alphabet
+			g.symbols,
+	
+			# Axiom
+			g.axiom,
+	
+			# List of rules
+			g.rules
+			))
 
+	nonTerms = list(gram.nonTerminals)
+	
+	list_of = [ getRules(g, symbol)[0] for symbol in nonTerms ]
 	"""
 	Algorithm:
 	Build an (arbitrary) order over non-terminals
@@ -216,7 +230,31 @@ def removeRecursion(g):
 		  (for A2 −→ δ1 | δ2 | . . . | δh)
 	   Remove direct recursion in A1-productions
 	"""
-	pass;
+
+	new_rules = []
+
+	for i in range(len(nonTerms)):
+		for j in range(0,i) :
+			beta_rules = [rule for rule in list_of[j] if rule.rhs[0] != nonTerms[i] ]
+			for rule in list_of[i]:
+				if rule.rhs[0] == nonTerms[j] : 
+					for beta_rule in beta_rules :
+						new_rules.append(Rule(nonTerms[i], beta_rule.rhs+rule.rhs[1:]))
+				else :
+					new_rules.append(rule)
+	new_rules += list_of[0]
+	
+	return removeDirectRecursion(
+			Grammar(
+			# Alphabet
+			g.symbols,
+	
+			# Axiom
+			g.axiom,
+	
+			# List of rules
+			new_rules
+			))
 
 print ("")
 print ("Élimination de toutes les récursivités :")
