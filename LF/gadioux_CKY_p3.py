@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# https://youtu.be/GfSvgPP3WLk
 # -*- encoding: utf-8 -*-
 
 # ----------------------------------------------------------------------
@@ -88,11 +89,11 @@ class Grammar:
 
 	def giveMeRules(self, listOfSymbol):
 		# Return all rules that generate the given list of symbol.
-		ret = set()
+		ruleList = set()
 		for rule in self.rules :
 			if rule.rhs == listOfSymbol :
-				ret.add(rule)
-		return ret
+				ruleList.add(rule)
+		return ruleList
 		
 	def __str__(self):
 		return "{" +\
@@ -121,11 +122,11 @@ class Tree:
 symS = Symbol("S")
 symA = Symbol("A")
 symB = Symbol("B")
-symC = Symbol("C")
+symC = Symbol("C")				#Forgotten because grammar 4 not tested
 symX = Symbol("X")
 symTerminalA = Symbol("a")
 symTerminalB = Symbol("b")
-symTerminalC = Symbol("c")
+symTerminalC = Symbol("c")		#Forgotten because grammar 4 not tested
 # On peut bien sûr rajouter des symboles si nécessaire
 
 # Définition de trois grammaires pour tester le parseur
@@ -192,29 +193,26 @@ g3 = Grammar(
 # ----------------------------------------------------------------------
 # Version minimale de l'algorythme CYK
 #
-# Soit u un mot de longueur n ; pour 0 =< i < j <= n,
-# T[i, j] est l'ensemble des non-terminaux A tels qu'il existe
-# une dérivation de A vers le sous-mot 'u[i] u[i+1] ... u[j-1]'
-# (i.e. A -->* u[i] ... u[j-1])
+# i est utilisé en ordonné et j en abscisse
+# i représente le nombre de lettre lues moins 1
+# j représente l'index de la première lettre du sous mot. 
+# exemple avec abba
+#	
+#	i
+#	3 *
+#	2 * *
+#	1 * * *
+#	0 * * * *
+#	/ a b b a
+#	/ 0 1 2 3 j
+#	
 #
 # Plus de détails : https://en.wikipedia.org/wiki/CYK_algorithm
 # ----------------------------------------------------------------------
 
 "Création et initialisation de la table T pour le mot u et la grammaire gr"
 def init(u, gr) :
-	# i est utilisé en ordonné et j en abscisse
-	# i représente le nombre de lettre lues moins 1
-	# j représente l'index de la première lettre du sous mot. 
-	# exemple avec abba
-	"""
-	i
-	3 *
-	2 * *
-	1 * * *
-	0 * * * *
-	# a b b a
-	# 0 1 2 3 j
-	"""
+	
 
 	T = {}
 
@@ -244,14 +242,16 @@ def loop(T, u, gr) :
 def buildTable(u, gr):
 	T = init(u, gr)
 	loop(T, u, gr)
-	
 	return T
 
 "Affichage d'une table T pour un mot de taille n"
 def printT(T, n):
-	for i in range(n):
+	# Nicer like this.
+	for i in range(n-1,-1,-1):
+		print("|", end = "")
 		for j in range(n-i):
-			print(str((i,j)) + ": " + ", ".join(str(t.label) for t in T[i,j]))
+			print(" ".join(str(t.label) for t in T[i,j]) if T[i,j] else " ", end = " |")
+		print("")
 
 
 # ----------------------------------------------------------------------
