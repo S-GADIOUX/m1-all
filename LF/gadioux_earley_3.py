@@ -155,7 +155,7 @@ def init(g, w, t):
 	# w: list of Symbol
 	# t: ParseChart
 	for rule in g.rules :
-		if rule.lhs == g.axiom :
+		if rule.lhs == g.axiom :	# Ajout des règles axiomatiques.
 			t.agAppend( Item(0, 0, g.axiom, [], rule.rhs ), "Init" )
 
 # Insère dans l'agenda les éventuels nouveaux items issus de la règle pred ou scan pour l'item it
@@ -164,15 +164,15 @@ def pred_scan(g, w, it, t):
 	# w: list of Symbol
 	# it: Item
 	# t: ParseChart
-	if it.ad :
+	if it.ad : # Si la règle est active.
 		#Pred
 		if g.isNonTerminal(it.ad[0]) :
-			for rule in g.rules :
+			for rule in g.rules :	# Recherche des règles pouvant être produite à partir de la tête de la partie encore active de l'item.
 				if rule.lhs.name == it.ad[0].name:
 					t.agAppend( Item(it.j, it.j, rule.lhs, [], rule.rhs), "Pred")
 		#Scan
 		else :
-			if w[it.i].name == it.ad[0].name :
+			if w[it.i].name == it.ad[0].name :	# Comparaison de la tête de lecture avec le terminal dans la règle.
 				t.agAppend( Item(it.j, it.j+1, it.lhs, it.bd + [it.ad[0]], it.ad[1:]), "Scan")
 
 # Insère dans l'agenda les éventuels nouveaux items issus de la règle comp pour l'item it
@@ -182,24 +182,21 @@ def comp(g, w, it, t):
 	# it: Item
 	# t: ParseChart
 	
-	# Si l'item n'est pas inactif, pouvant avancer
 	b = False
-	if it.ad :
-		for item in t.ch :
-			if not item.ad :
-				if it.j == item.i and it.ad[0].name == item.lhs.name:
-					t.agAppend( Item(it.i, item.j, it.lhs, it.bd + [it.ad[0]], it.ad[1:]))
-					b = True
-
-	# Si l'item correspond à une règle inactive (terminée), pouvant faire avancer un autre item
-	else :
-		for item in t.ch :
-			if item.ad :
-				if it.i == item.j and item.ad[0].name == it.lhs.name :
-					t.agAppend( Item(item.i, it.j, item.lhs, item.bd + [item.ad[0]], item.ad[1:]), "Comp")
-					b = True
-
+	for item in t.ch :	# Parcours des autres item de la chart.
+			if it.ad and not item.ad : 	 # Si l'item principal est actif
+				b += comp_help(it, item, t)
+			elif not it.ad and item.ad : # Si l'autre item est actif
+				b += comp_help(item, it, t)
 	return b
+
+def comp_help(act, inact, t):
+	# Fonction de support de comp qui prend en entrée deux item, un actif et l'autre inactif ainsi qu'une table T.
+	# La fonction tente ensuite une compilation.
+	if act.j == inact.i and act.ad[0].name == inact.lhs.name :
+		t.agAppend( Item(act.i, inact.j, act.lhs, act.bd + [act.ad[0]], act.ad[1:]), "Comp")
+		return True
+	return False
 
 # Renvoie True si l'analyse a été réussie, False sinon
 def table_complete(g, w, t):
@@ -207,7 +204,7 @@ def table_complete(g, w, t):
 	# w: list of Symbol
 	# t: ParseChart
 	
-	for item in t.ch :
+	for item in t.ch : # Verifie si l'item est l'axiome, qu'il a bien lu tout le mot et que la regle est inactive.
 		if item.lhs.name == g.axiom.name and not item.i and item.j == len(w) and not item.ad :
 			return True
 	
@@ -225,15 +222,16 @@ def parse_earley(g, w):
 	
 	# Boucle sur l'agenda : on sort un item, on l'insère dans la chart, et toutes ses conséquences sont insérées dans l'agenda
 	while T.ag != []:
-		it = T.ag.pop(0)
-		T.chAppend(it)
-		if not comp(g, w, it, T) :
-			pred_scan(g, w, it ,T)
+		print("")
+		it = T.ag.pop(0)	# Sortie de l'agenda
+		T.chAppend(it)		# Ajout dans la table
+		if not comp(g, w, it, T) :	#Calcul de comp
+			pred_scan(g, w, it ,T)	# Calcul de pred et scan
 		
 	if table_complete(g, w, T):
-		print( "parsing réussi" )
+		print( "\n****Parsing réussi****" )
 	else:
-		print( "parsing échoué" )
+		print( "\n****Parsing échoué****" )
 	
 	return T.ch
 
@@ -293,7 +291,7 @@ def wordToTerminals(w, g):
 	return result
 
 for w in words:
-	print( "\nmot : " + w )
+	print( "\n#### Mot : " + w + " ####")
 	
 	chart = parse_earley(g1, wordToTerminals(w, g1))
 	
