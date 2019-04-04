@@ -2,15 +2,7 @@
 # -*- encoding: utf8 -*-
 
 # -----
-# TP Implémentation de l'algorithme Earley (avec fonction pred)
-# 
-# 1) Familiarisez-vous avec le code.
-# 2) Implémentez les fonctions incomplètes (celles contenant le mot-clef "pass").
-# 3) Expliquez s'il existe des contraintes sur la grammaire pour que votre algorithme fonctionne (ou si, au contraire, il marche dans tous les cas) ; si oui, pour les plus avancés d'entre-vous, il est envisageable de produire une fonction permettant de tester si une grammaire donnée satisfait ces contraintes.
-# 4) Faites une copie du fichier et modifiez le code pour retourner (et afficher de manière lisible) un arbre syntaxique lorsque l'analyse est réussie (n'hésitez pas pour cela à faire évoluer les classes existantes).
-# Vous avez évidemment le droit de définir des fonctions auxiliaires ou d'ajouter des méthodes aux classes, mais tout votre code doit être soigneusement commenté :
-# – le rôle ou la valeur de retour de chaque fonction doit être indiqué, ainsi que son fonctionnement ;
-# – toute création de variable doit être accompagnée d'un commentaire sur son rôle/sens.
+# Attention, cette implémentation ne gère pas les règles de la forme x epsilon y
 
 class Symbol:
 	# field name: String
@@ -176,10 +168,7 @@ class Tree:
 			self.label = label
 	
 	def __str__(self):
-		if len(self.branches) == 1:
-			return self.label.name + "\n  " + (str(self.branches[0]).replace("\n", "\n  "))
-		else:
-			return self.label.name + "\n  " + str(self.branches[0]).replace("\n", "\n  ") + "\n  " + str(self.branches[1]).replace("\n", "\n  ")
+		return self.label.name + "\n  "+ "\n  ".join([str(branche).replace("\n", "\n  ") for branche in self.branches])
 
 # ------------------------
 
@@ -208,8 +197,13 @@ def pred_scan(g, w, it, t):
 					t.agAppend( Item(it.j, it.j, rule.lhs, [], rule.rhs), "Pred")
 		#Scan
 		else :
-			if it.j < len(w) and w[it.j].name == it.ad[0].name :	# Comparaison de la tête de lecture avec le terminal dans la règle.
-				t.agAppend( Item(it.j, it.j+1, it.lhs, it.bd + [it.ad[0]], it.ad[1:], tree = Tree( it.lhs ,[w[it.i]]) ), "Scan") # Ajout egalement de l'arbre syntaxique produit par la regle.
+			j = it.j
+			while (j < len(w) and len(it.ad) > j-it.j and w[j].name == it.ad[j-it.j].name) :
+				j+=1
+			if j != it.j:
+				t.agAppend( Item(it.i, j, it.lhs, it.bd + it.ad[:(j-it.j)], it.ad[(j-it.j):], tree = Tree( it.lhs ,w[it.i:j]) ), "Scan") # Ajout egalement de l'arbre syntaxique produit par la regle.
+			elif not it.ad[0].name :
+				t.agAppend( Item(it.i, it.j, it.lhs, it.bd + [it.ad[0]], it.ad[1:], tree = Tree( it.lhs ,[]) ), "Scan") # Ajout egalement de l'arbre syntaxique produit par la regle.
 	if t.verbose :
 		input()
 
@@ -234,7 +228,15 @@ def comp_help(act, inact, t):
 	# Fonction de support de comp qui prend en entrée deux item, un actif et l'autre inactif ainsi qu'une table T.
 	# La fonction tente ensuite une compilation.
 	if act.j == inact.i and act.ad[0].name == inact.lhs.name :
-		t.agAppend( Item(act.i, inact.j, act.lhs, act.bd + [act.ad[0]], act.ad[1:], tree = Tree(inact.lhs, [act.tree, inact.tree] ) if act.tree else inact.tree ), "Comp")
+		
+
+		if act.tree :
+			act.tree.branches.append(inact.tree)
+			tree = act.tree
+		else :
+			tree = Tree( act.lhs, [inact.tree]) 
+
+		t.agAppend( Item(act.i, inact.j, act.lhs, act.bd + [act.ad[0]], act.ad[1:], tree = tree ), "Comp")
 		#les arbres sont egalement gérés au dessus.
 		return True
 	return False
@@ -288,23 +290,23 @@ symS = Symbol("S")
 symA = Symbol("A")
 symTerminalA = Symbol("a")
 symTerminalB = Symbol("b")
-symEpsilon = Symbol("")
+#symEpsilon = Symbol("")
 
 # Definition of a grammar
 g1 = Grammar(
 	# All symbols
 	[symS, symA, symTerminalA, symTerminalB],
-	
+
 	# Axiom
 	symS,
-	
+
 	# List of rules
 	[
-		Rule(symS, [symA, symS]), 					# S --> AS
+		Rule(symS, [symA, symS]), 				# S --> AS
 		Rule(symS, [symTerminalB]), 				# S --> b
 		Rule(symA, [symTerminalA]), 				# A --> a
 	],
-	
+
 	# name
 	"g1"
 )
@@ -312,47 +314,67 @@ g1 = Grammar(
 g2 = Grammar(
 	# All symbols
 	[symS, symA, symTerminalA, symTerminalB],
-	
+
 	# Axiom
 	symS,
-	
+
 	# List of rules
 	[
-		Rule(symS, [symA, symS]), 		# S --> AS
-		Rule(symS, [symTerminalB]), 	# S --> b
-		Rule(symA, [symTerminalA]), 	# A --> a
-		Rule(symA, [symA]), 			# A --> A
+		Rule(symS, [symA, symS]), 				# S --> AS
+		Rule(symS, [symTerminalB]), 				# S --> b
+		Rule(symA, [symA]), 					# A --> A
+		Rule(symA, [symTerminalA]), 				# A --> a
 	],
-	
+
 	# name
 	"g2"
-	)
+)
 
 g3 = Grammar(
 	# All symbols
-	[symS, symA, symTerminalA, symTerminalB, symEpsilon],
-	
+	[symS, symA, symTerminalA, symTerminalB],
+
 	# Axiom
 	symS,
-	
+
 	# List of rules
 	[
-		Rule(symS, [symA, symS]), 					# S --> AS
-		Rule(symS, [symA]), 						# S --> A
+		Rule(symS, [symA, symS]), 				# S --> AS
+		Rule(symS, [symA]), 					# S --> A
+		Rule(symA, [symS]), 					# A --> S
 		Rule(symS, [symTerminalB]), 				# S --> b
-		Rule(symS, [symTerminalB, symTerminalB]), 	# S --> bb
+		Rule(symS, [symTerminalB, symTerminalB]), 		# S --> bb
+		Rule(symA, []), 					# A --> [epsilon]
 		Rule(symA, [symTerminalA]), 				# A --> a
-		Rule(symA, [symS]), 						# A --> S
-		Rule(symA, [symEpsilon]),					# A --> e
 	],
-	
+
 	# name
 	"g3"
-	)
+)
 
-print( g2 )
+g4 = Grammar(
+	# All symbols
+	[symS, symA, symTerminalA, symTerminalB],
 
-words = ["aab", "b", "aaaaab", "abab"]
+	# Axiom
+	symS,
+
+	# List of rules
+	[
+		Rule(symS, [symA, symS, symA]), 	# S --> ASA
+		Rule(symS, [symTerminalA]), 		# S --> a
+		Rule(symS, []), 					# S --> epsilon
+		Rule(symA, [symTerminalA]), 		# A --> a
+	],
+
+	# name
+	"g4"
+)
+
+print( g4 )
+
+#words = ["aab", "b", "aaaaab", "abab"]
+words = ["aa", "a", ""]
 #words = ["aab"]
 
 # Transform a word (as a String) to the symbolic representation (a list of terminal symbols)
@@ -380,7 +402,7 @@ def wordToTerminals(w, g):
 for w in words:
 	print( "\n#### Mot : " + w + " ####")
 	
-	chart = parse_earley(g1, wordToTerminals(w, g3), False)
+	chart = parse_earley(g4, wordToTerminals(w, g4), True)
 	
 	print( "chart:" )
 	for item in chart:
