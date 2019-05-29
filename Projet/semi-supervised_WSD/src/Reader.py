@@ -18,18 +18,23 @@ class cat_dict :
 		return vec
 
 def embedding_reader(file):
+	
 	embeddings = {}
+	
 	with open(file, encoding = "utf-8" ) as stream :
 		nb, dim = [ int(s) for s in stream.readline()[:-1].split(" ") ]
 		sums = [0 for i in range(dim)]
+		
 		for i in range(nb) :
 			datas = stream.readline()[:-1].split(" ")
 			vec = [float(s) for s in datas[1:]]
 			embeddings[datas[0]] = vec
 			sums = [sums[i]+vec[i] for i in range(dim)]
 			stream.readline()
+		
 		sums = [sums[i]/nb for i in range(dim)]
 		embeddings["#MEDIAN#"] = sums
+	
 	return embeddings
 
 def sentence2vec(list_of_conll_lines, key, embeddings, left, right, cat_dictio) :
