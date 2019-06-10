@@ -38,7 +38,7 @@ class Dendrogram:
 	def print_members(self, stream):
 		""" écrit la liste d'objets présents dans le cluster 
 		"""
-		stream.write(' '.join( [ x.encode('utf-8') for x in self.members ] ))
+		stream.write(' '.join( [ x for x in self.members ] ))
 	
 	def __str__(self):
 		""" Affichage parenthésé du dendrogramme (illisible si dendrogramme trop gros...) """
@@ -98,8 +98,13 @@ class HAC:
 		if self.nb_objects != sim_matrix.shape[0]:
 			exit("La matrice et la liste d'objets ne sont pas de meme taille! J'arrête tout!")
 		self.actif = list(range(len(object_names)))
-		for i in range(len(object_names)):
-			self.ppc.append((max(sim_matrix[i,:]), numpy.argmax(sim_matrix[i,:]) ))
+		
+		#Création des premiers plus proches clusters
+		for i in range(len(object_names)) : 
+			key = numpy.argmax(sim_matrix[i,:])
+			self.ppc.append((max(sim_matrix[i,:]),  key))
+			self.clusters.append(Dendrogram(object_names[i]))
+		
 		
 	def clusterize(self, object_names, sim_matrix, nbclusters=1):
 		""" Calcule le clustering étant donnés :
@@ -108,11 +113,13 @@ class HAC:
 		nbclusters   = le nb de clusters voulus
 		"""
 		self.initialize_clustering(object_names, sim_matrix)
-
+		if self.trace :
+			for i in self.clusters :
+				print(i)
 		while len(self.actif) > nbclusters :
-			to_merge = max(self.ppc)[1]
+			similar, to_merge = max(self.ppc)
 			mergeur = numpy.argmax(self.ppc, axis = 0)[0]
-			
+
 			k = 0
 			for clu in self.ppc :
 				if clu[1] == to_merge:
@@ -123,17 +130,23 @@ class HAC:
 			self.ppc[mergeur] = (max(sim_matrix[mergeur,:]), numpy.argmax(sim_matrix[mergeur,:]) )
 			self.ppc[to_merge] = (0,-1)
 			self.actif.remove(to_merge)
-			print("Merged", object_names[to_merge], "with", object_names[mergeur],"ok")
-			input("")
-
-
-
-		print("TODO!\n")
+			if self.trace:
+				print("Merged", object_names[to_merge],
+					"with",	object_names[mergeur],
+					"at",		similar)
+			
+			self.clusters[mergeur] = Dendrogram(\
+								self.clusters[mergeur],\
+								self.clusters[to_merge],\
+								similar)
+			self.clusters[to_merge] = None
+		
+		self.clusters = filter(lambda a: a, self.clusters)
 
 	def dump(self,stream):
 		""" Affichage des membres des clusters, en l'état courant du clustering hiérarchique """
 		for c,cl in enumerate(self.clusters):
-			stream.write('cl' + str(c) + ' = ')
+			stream.write('Cluster ' + str(c) + ' = ')
 			cl.print_members(stream)
 			stream.write('\n')
 
@@ -208,21 +221,23 @@ parser.add_argument('-n', "--nbclusters", type=int, default=1, help='Nb (minimal
 parser.add_argument('-t', "--trace", type=int, default=0, help='entier 0, 1 ou 2 : Déclenche diverses traces pendant le déroulement de l\'algo. Default=0')
 args = parser.parse_args()
 
+
+sys.stderr.write("Ouverture thesaurus...\n")
 thesaurus_stream = open(args.thesaurus_file)
 
 sys.stderr.write("Lecture thesaurus...\n")
 (object_names, simmatrix) = thesaurus2simmatrix(thesaurus_stream)
 
-sys.stderr.write("Nb d'objets a clusteriser:" + str(len(object_names)) + "\n")
+sys.stderr.write("Nb d'objets a clusteriser : " + str(len(object_names)) + "\n")
 
 hac = HAC(trace=args.trace)
-
+for i in hac.clusters :
+	print(i)
 # A DECOMMENTER une fois l'implementation faite
 hac.clusterize(object_names, simmatrix, nbclusters=args.nbclusters)
 
-input("")
-
 print("\nRésultat clustering hiérarchique en %d clusters:\n" % args.nbclusters)
 hac.dump(sys.stdout)
+
 if hac.trace:
 	sys.stderr.write( "\nDétail des fusions:\n" + '\n'.join([str(x) for x in hac.clusters]) + "\n")
