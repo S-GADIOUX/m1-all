@@ -124,6 +124,7 @@ def file2vec(file, key, embeddings, left, right) :
 		for cat in cats :
 			vec+= cat_dictio.vector_of_cat(cat)
 		vector_list.append(vec)
+	print(embeddings["#MEDIAN#"])
 	return vector_list
 
 def merge_with_gold_file(vectors, gold_file):
@@ -134,10 +135,15 @@ def merge_with_gold_file(vectors, gold_file):
 			vec_and_gold.append((vector, gold))
 	return vec_and_gold
 
-		
+
 
 embeddings = embedding_reader("../data/w2v_final.txt")
-
+print("embeddings")
 vecs = file2vec("../data/compter/compter-150.conll", "compter", embeddings, 2, 3)
+print("vecs")
 
 datas = merge_with_gold_file(vecs,"../data/compter/compter-150.gold")
+import pickle
+pickle.dump(datas, open('compter.pkl', 'wb'))
+with open('compter.pkl', 'rb') as f1:
+	datas = f1.read()
