@@ -83,16 +83,29 @@ def sentence2vec(list_of_conll_lines, key, embeddings, left, right, cat_dictio) 
 	
 	#Find the index of the word to classify
 	key_index = int(datas["lemme"][datas["lemme"] == key].index[0])
+	
+
 	vector = []
 	cats = []
+	#Add the median vector when the word is near the start of the sentence
+	if key_index-left < 1:
+		for i in range(key_index-left,1):
+			vector += embeddings["#MEDIAN#"]
+			cats += ["BEFORE"]
+	#Add all vectors inside the sentence
 	for i in chain(range(max(1, key_index-left), key_index),
 					range(key_index+1, min(len(list_of_conll_lines), key_index+right)+1)) :
 		vector+= embeddings.get(datas["lemme"].at[str(i)], embeddings["#MEDIAN#"])
 		cats += [datas["detCat"].at[str(i)]]
-		
+	#Add the median vector when the word is near the end of the sentence
+	if len(list_of_conll_lines) < key_index+right:
+		for i in range(len(list_of_conll_lines)+1,key_index+right+1):
+			vector += embeddings["#MEDIAN#"]
+			cats += ["AFTER"]
 	return (vector,cats)
 
-def file2vec(file, key, embeddings, left, right):
+def file2vec(file, key, embeddings, left, right) :
+	#Turn a file into a list of vector
 	vec_and_cats = []
 	cat_dictio = cat_dict()
 	with open(file, encoding = "utf-8") as stream :
@@ -128,4 +141,3 @@ embeddings = embedding_reader("../data/w2v_final.txt")
 vecs = file2vec("../data/compter/compter-150.conll", "compter", embeddings, 2, 3)
 
 datas = merge_with_gold_file(vecs,"../data/compter/compter-150.gold")
-pp.pprint(datas)
